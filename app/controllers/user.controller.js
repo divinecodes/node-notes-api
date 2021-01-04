@@ -1,5 +1,5 @@
 const User = require('../models/users.model');
-const crypto = require('crypto');
+const Utils = require('../common/util');
 const usersModel = require('../models/users.model');
 
 /**
@@ -15,11 +15,7 @@ exports.create = (req, res) => {
         });
     }
 
-    let salt = crypto.randomBytes(16).toString('base64');
-    let hash = crypto.createHmac('sha512',salt)
-                    .update(req.body.password)
-                    .digest('base64'); 
-    req.body.password = salt+ "$"+ hash;
+    req.body.password = Utils.hashString(req.body.password);
     req.body.permissionLevel = 1; 
 
     //create new user 
@@ -58,6 +54,33 @@ exports.findOne = (req, res) => {
 
             return res.status(500).send({
                 message:  `Error retrieving note with id `+req.params.userId
+            });
+        });
+}
+
+exports.update = (req, res) => {
+    if(req.body.password) {
+        req.body.password = Utils.hashString(req.body.password);
+    }
+
+    User.findByIdAndUpdate(req.params.userId, req.body)
+        .then(user => {
+            if(!user){
+                return res.status(404).send({
+                    message: `User with id ${req.params.userId} not found`
+                });
+            }
+
+            res.send(user);
+        }).catch(err => {
+            if(err.kind === 'ObjectId'){
+                return res.status(404).send({
+                    message: `User with id not found`
+                });
+            }
+
+            return res.status(500).send({
+                message: `Error updating user with id ${req.params.userId}`
             });
         })
 }
